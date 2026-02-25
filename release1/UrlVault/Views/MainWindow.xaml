@@ -1,0 +1,206 @@
+<Window x:Class="UrlVault.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:converters="clr-namespace:UrlVault.Converters"
+        Title="UrlVault - URL Manager" Height="700" Width="1100"
+        MinHeight="500" MinWidth="800"
+        Background="#F5F5F5">
+    <Window.Resources>
+        <converters:StringJoinConverter x:Key="StringJoinConverter"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <Style x:Key="ToolbarButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Background" Value="#3F51B5"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#5C6BC0"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#9E9E9E"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DangerButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Background" Value="#E53935"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#EF5350"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#9E9E9E"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header / Toolbar -->
+        <Border Grid.Row="0" Background="#1A237E" Padding="16,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="UrlVault" Foreground="White" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="+ Add" Command="{Binding AddCommand}" Style="{StaticResource ToolbarButtonStyle}"/>
+                    <Button Content="Edit" Command="{Binding EditCommand}" Style="{StaticResource ToolbarButtonStyle}"/>
+                    <Button Content="Delete" Command="{Binding DeleteCommand}" Style="{StaticResource DangerButtonStyle}"/>
+                    <Button Content="Copy URL" Command="{Binding CopyUrlCommand}" Style="{StaticResource ToolbarButtonStyle}"/>
+                    <Button Content="Open in Browser" Command="{Binding OpenUrlCommand}" Style="{StaticResource ToolbarButtonStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Search and Category Filter -->
+        <Border Grid.Row="1" Background="#E8EAF6" Padding="16,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="200"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Background="White" CornerRadius="4" BorderBrush="#C5CAE9" BorderThickness="1">
+                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                             BorderThickness="0" Padding="8,6" FontSize="13"
+                             Background="Transparent"
+                             VerticalAlignment="Center"/>
+                </Border>
+
+                <TextBlock Grid.Column="1" Text="Category:" VerticalAlignment="Center"
+                           Margin="12,0,8,0" FontWeight="SemiBold"/>
+                <ComboBox Grid.Column="2"
+                          ItemsSource="{Binding CategoryFilters}"
+                          SelectedItem="{Binding SelectedCategoryFilter}"
+                          FontSize="13" Padding="8,4"/>
+            </Grid>
+        </Border>
+
+        <!-- Tag Filters -->
+        <Border Grid.Row="2" Background="#F3F4FF" Padding="16,6"
+                BorderBrush="#C5CAE9" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Tags:" VerticalAlignment="Center" Margin="0,0,8,0"
+                           FontWeight="SemiBold" Foreground="#3F51B5"/>
+                <ItemsControl ItemsSource="{Binding Config.Tags}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <CheckBox Content="{Binding}" Margin="0,0,12,0" VerticalAlignment="Center"
+                                      Checked="TagFilter_Changed" Unchecked="TagFilter_Changed"
+                                      Tag="{Binding}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <!-- Main ListView -->
+        <Border Grid.Row="3" Margin="8" Background="White"
+                BorderBrush="#C5CAE9" BorderThickness="1" CornerRadius="4">
+            <ListView x:Name="UrlListView"
+                      ItemsSource="{Binding EntriesView}"
+                      SelectedItem="{Binding SelectedEntry}"
+                      BorderThickness="0"
+                      FontSize="13">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="Title" Width="250" DisplayMemberBinding="{Binding Title}"/>
+                        <GridViewColumn Header="URL" Width="280" DisplayMemberBinding="{Binding Url}"/>
+                        <GridViewColumn Header="Category" Width="100" DisplayMemberBinding="{Binding Category}"/>
+                        <GridViewColumn Header="Tags" Width="160">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Tags, Converter={StaticResource StringJoinConverter}}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                        <GridViewColumn Header="Date Saved" Width="180" DisplayMemberBinding="{Binding DateSaved}"/>
+                    </GridView>
+                </ListView.View>
+                <ListView.InputBindings>
+                    <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding OpenUrlCommand}"/>
+                </ListView.InputBindings>
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="Padding" Value="4,6"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#E8EAF6"/>
+                                <Setter Property="Foreground" Value="#1A237E"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#F3F4FF"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </ListView.ItemContainerStyle>
+            </ListView>
+        </Border>
+
+        <!-- Status Bar -->
+        <Border Grid.Row="4" Background="#1A237E" Padding="16,5">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Foreground="White" FontSize="12">
+                    <TextBlock.Text>
+                        <MultiBinding StringFormat="Showing {0} entries">
+                            <Binding Path="DisplayedCount"/>
+                        </MultiBinding>
+                    </TextBlock.Text>
+                </TextBlock>
+                <TextBlock Text=" | " Foreground="#9FA8DA" FontSize="12"/>
+                <TextBlock Text="UrlVault" Foreground="#9FA8DA" FontSize="12"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
