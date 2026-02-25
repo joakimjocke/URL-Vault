@@ -1,5 +1,7 @@
+using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace UrlVault.Services;
@@ -7,6 +9,9 @@ namespace UrlVault.Services;
 public class TitleFetcherService
 {
     private static readonly HttpClient HttpClient;
+    private static readonly Regex TitleRegex = new(
+        @"<title[^>]*>(.*?)</title>",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
 
     static TitleFetcherService()
     {
@@ -27,27 +32,60 @@ public class TitleFetcherService
 
     public async Task<string> FetchTitleAsync(string url)
     {
+        const int maxCharsToScan = 1024 * 1024; // 1 MB of text is enough for title discovery.
         try
         {
             using var response = await HttpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-            var buffer = new byte[256 * 1024];
-            var bytesRead = await stream.ReadAsync(buffer).ConfigureAwait(false);
-            var content = System.Text.Encoding.UTF8.GetString(buffer, 0, bytesRead);
+            var encoding = GetResponseEncoding(response) ?? Encoding.UTF8;
+            using var reader = new StreamReader(stream, encoding, detectEncodingFromByteOrderMarks: true);
+            var contentBuilder = new StringBuilder(capacity: 16 * 1024);
+            var buffer = new char[4096];
 
-            var match = Regex.Match(content, @"<title[^>]*>(.*?)</title>",
-                RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            while (contentBuilder.Length < maxCharsToScan)
+            {
+                var readCount = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                if (readCount <= 0)
+                {
+                    break;
+                }
 
-            if (match.Success)
-                return WebUtility.HtmlDecode(match.Groups[1].Value.Trim());
+                var charsToAppend = Math.Min(readCount, maxCharsToScan - contentBuilder.Length);
+                contentBuilder.Append(buffer, 0, charsToAppend);
+
+                var content = contentBuilder.ToString();
+                var match = TitleRegex.Match(content);
+                if (match.Success)
+                {
+                    return WebUtility.HtmlDecode(match.Groups[1].Value.Trim());
+                }
+            }
 
             return string.Empty;
         }
         catch
         {
             return string.Empty;
+        }
+    }
+
+    private static Encoding? GetResponseEncoding(HttpResponseMessage response)
+    {
+        try
+        {
+            var charset = response.Content.Headers.ContentType?.CharSet;
+            if (string.IsNullOrWhiteSpace(charset))
+            {
+                return null;
+            }
+
+            return Encoding.GetEncoding(charset.Trim('\"', '\''));
+        }
+        catch
+        {
+            return null;
         }
     }
 }

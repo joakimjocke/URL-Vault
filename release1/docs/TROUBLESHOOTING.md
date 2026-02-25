@@ -4,13 +4,13 @@
 
 ### `error MSB4018: The "GenerateResource" task failed`
 **Cause:** Building a WPF project on Linux without the Windows desktop workload.  
-**Fix:** This is expected when building on a non-Windows host. The project targets `net8.0-windows`. Use a Windows machine or a Windows GitHub Actions runner to produce a runnable binary. The `dotnet build` command on Linux will still compile all C# and validate XAML, but you cannot run the output.
+**Fix:** This is expected when building on a non-Windows host. The project targets `net9.0-windows`. Use a Windows machine or a Windows GitHub Actions runner to produce a runnable binary. The `dotnet build` command on Linux will still compile all C# and validate XAML, but you cannot run the output.
 
 ### `CS0234: The type or namespace name 'Windows' does not exist`
-**Cause:** The project is not targeting `net8.0-windows` or `<UseWPF>true</UseWPF>` is missing.  
+**Cause:** The project is not targeting `net9.0-windows` or `<UseWPF>true</UseWPF>` is missing.  
 **Fix:** Check `UrlVault.csproj`:
 ```xml
-<TargetFramework>net8.0-windows</TargetFramework>
+<TargetFramework>net9.0-windows</TargetFramework>
 <UseWPF>true</UseWPF>
 ```
 

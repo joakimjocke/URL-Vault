@@ -1,6 +1,6 @@
 # UrlVault
 
-A Windows desktop URL manager built with WPF and .NET 8. Save, organise, search, and open your URLs with ease.
+A Windows desktop URL manager built with WPF and .NET 9. Save, organise, search, and open your URLs with ease.
 
 ## Features
 

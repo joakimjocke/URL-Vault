@@ -8,7 +8,7 @@ dotnet restore
 dotnet build
 ```
 
-The output lands in `UrlVault/bin/Debug/net8.0-windows/`.
+The output lands in `UrlVault/bin/Debug/net9.0-windows/`.
 
 ## Run Locally
 
@@ -22,9 +22,9 @@ dotnet run --project UrlVault/UrlVault.csproj
 dotnet build -c Release
 ```
 
-Output: `UrlVault/bin/Release/net8.0-windows/`
+Output: `UrlVault/bin/Release/net9.0-windows/`
 
-## Publish – Framework-Dependent (small, requires .NET 8 runtime on target machine)
+## Publish – Framework-Dependent (small, requires .NET 9 runtime on target machine)
 
 ```bash
 dotnet publish UrlVault/UrlVault.csproj \
@@ -34,7 +34,7 @@ dotnet publish UrlVault/UrlVault.csproj \
   -o ./publish/framework-dependent
 ```
 
-The output folder contains `UrlVault.exe` plus a few DLLs. The user must have .NET 8 Desktop Runtime installed.
+The output folder contains `UrlVault.exe` plus a few DLLs. The user must have .NET 9 Desktop Runtime installed.
 
 ## Publish – Self-Contained (larger, no runtime required)
 
@@ -78,7 +78,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
       - run: dotnet restore release1/UrlVault/UrlVault.csproj
       - run: dotnet build release1/UrlVault/UrlVault.csproj -c Release --no-restore
       - run: dotnet publish release1/UrlVault/UrlVault.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
@@ -87,3 +87,5 @@ jobs:
           name: UrlVault
           path: publish/
 ```
+
+

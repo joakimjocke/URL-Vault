@@ -2,15 +2,15 @@
 
 ## Prerequisites
 
-### 1. Install the .NET 8 SDK
+### 1. Install the .NET 9 SDK
 
-Download from <https://dotnet.microsoft.com/download/dotnet/8.0> and install the **SDK** (not just the Runtime).
+Download from <https://dotnet.microsoft.com/download/dotnet/9.0> and install the **SDK** (not just the Runtime).
 
 Verify the installation:
 
 ```bash
 dotnet --version
-# should print 8.x.x
+# should print 9.x.x
 ```
 
 ### 2. Install VS Code
@@ -77,7 +77,7 @@ The generated `launch.json` looks like:
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
-      "program": "${workspaceFolder}/UrlVault/bin/Debug/net8.0-windows/UrlVault.exe",
+      "program": "${workspaceFolder}/UrlVault/bin/Debug/net9.0-windows/UrlVault.exe",
       "args": [],
       "cwd": "${workspaceFolder}/UrlVault",
       "stopAtEntry": false

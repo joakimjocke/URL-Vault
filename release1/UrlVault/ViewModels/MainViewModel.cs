@@ -159,7 +159,7 @@ public class MainViewModel : BaseViewModel
             await _storageService.SaveUrlsAsync(_allEntries.ToList()).ConfigureAwait(false);
             Application.Current.Dispatcher.Invoke(() => OnPropertyChanged(nameof(DisplayedCount)));
         };
-        var window = new AddEditWindow(vm);
+        var window = CreateOwnedAddEditWindow(vm);
         window.ShowDialog();
     }
 
@@ -176,7 +176,7 @@ public class MainViewModel : BaseViewModel
             await _storageService.SaveUrlsAsync(_allEntries.ToList()).ConfigureAwait(false);
             Application.Current.Dispatcher.Invoke(() => _entriesView?.Refresh());
         };
-        var window = new AddEditWindow(vm);
+        var window = CreateOwnedAddEditWindow(vm);
         window.ShowDialog();
     }
 
@@ -212,4 +212,18 @@ public class MainViewModel : BaseViewModel
         }
         catch { }
     }
+
+    private static AddEditWindow CreateOwnedAddEditWindow(AddEditViewModel viewModel)
+    {
+        var window = new AddEditWindow(viewModel);
+        var owner = Application.Current?.Windows
+            .OfType<Window>()
+            .FirstOrDefault(w => w.IsActive) ?? Application.Current?.MainWindow;
+
+        if (owner != null && !ReferenceEquals(owner, window))
+            window.Owner = owner;
+
+        return window;
+    }
 }
+

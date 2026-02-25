@@ -152,10 +152,17 @@
                       BorderThickness="0"
                       FontSize="13">
                 <ListView.View>
-                    <GridView>
+                    <GridView x:Name="UrlGridView" AllowsColumnReorder="True">
                         <GridViewColumn Header="Title" Width="250" DisplayMemberBinding="{Binding Title}"/>
                         <GridViewColumn Header="URL" Width="280" DisplayMemberBinding="{Binding Url}"/>
                         <GridViewColumn Header="Category" Width="100" DisplayMemberBinding="{Binding Category}"/>
+                        <GridViewColumn Header="Comment" Width="220">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Comment}" TextTrimming="CharacterEllipsis"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
                         <GridViewColumn Header="Tags" Width="160">
                             <GridViewColumn.CellTemplate>
                                 <DataTemplate>
@@ -204,3 +211,4 @@
         </Border>
     </Grid>
 </Window>
+
