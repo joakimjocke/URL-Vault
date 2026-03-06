@@ -5,6 +5,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
+using System.Windows.Input;
+using System.Windows.Media;
 using UrlVault.Models;
 using UrlVault.Services;
 using UrlVault.ViewModels;
@@ -18,6 +20,14 @@ public partial class MainWindow : Window
     private readonly MainWindowStateService _mainWindowStateService = new();
     private string? _lastSortColumnKey;
     private ListSortDirection _lastSortDirection = ListSortDirection.Ascending;
+
+    // Drag/drop state
+    private Point _dragStartPoint;
+    private CategoryNodeViewModel? _dragSourceNode;
+    private TreeViewItem? _dropTargetItem;
+    private DropAction _currentDropAction = DropAction.None;
+
+    private enum DropAction { None, ReorderBefore, ReorderAfter, Nest, Promote }
 
     public MainWindow()
     {
@@ -34,12 +44,13 @@ public partial class MainWindow : Window
     {
         await _viewModel.LoadAsync();
         ApplySavedColumnLayout();
+        RestoreTreeExpandedState();
     }
 
     private void MainWindow_Closing(object? sender, CancelEventArgs e)
     {
-        SaveWindowSize();
         SaveColumnLayout();
+        SaveAllState();
     }
 
     private void TagFilter_Changed(object sender, RoutedEventArgs e)
@@ -56,6 +67,268 @@ public partial class MainWindow : Window
                 _viewModel.SelectedTagFilters.Remove(tag);
             }
         }
+    }
+
+    private void CategoryTreeView_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+    {
+        if (DataContext is MainViewModel vm && e.NewValue is CategoryNodeViewModel node)
+            vm.SelectedCategoryNode = node;
+    }
+
+    private void UrlListViewItem_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        // Select the row the user right-clicked so all context menu commands
+        // operate on the correct entry before the menu opens.
+        if (sender is ListViewItem item)
+            item.IsSelected = true;
+    }
+
+    // ── Drag/drop re-parenting ──────────────────────────────────────────────
+
+    private void CategoryTreeView_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _dragStartPoint = e.GetPosition(null);
+        var (node, _) = GetNodeAndItem(e.OriginalSource as DependencyObject);
+        // Any node except "All" can be dragged
+        _dragSourceNode = (node != null && !node.IsAll) ? node : null;
+    }
+
+    private void CategoryTreeView_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed || _dragSourceNode == null) return;
+
+        var pos = e.GetPosition(null);
+        var diff = _dragStartPoint - pos;
+        if (Math.Abs(diff.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(diff.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+
+        var node = _dragSourceNode;
+        _dragSourceNode = null;
+        DragDrop.DoDragDrop(CategoryTreeView, new DataObject("CategoryNodePath", node.FullPath), DragDropEffects.Move);
+    }
+
+    // Height of a single TreeViewItem header row (px). Used to compute
+    // reorder-vs-nest drop zones independent of whether the item is expanded.
+    private const double RowHeight = 28.0;
+    // Fraction of the row from the top that triggers "reorder before".
+    // Everything below this line triggers "nest".
+    private const double ReorderZoneFraction = 0.35;
+
+    private void CategoryTreeView_DragOver(object sender, DragEventArgs e)
+    {
+        ClearDropHighlight();
+
+        if (!e.Data.GetDataPresent("CategoryNodePath"))
+        {
+            e.Effects = DragDropEffects.None;
+            e.Handled = true;
+            return;
+        }
+
+        var draggedPath = e.Data.GetData("CategoryNodePath") as string ?? "";
+        var (target, targetItem) = GetNodeAndItem(e.OriginalSource as DependencyObject);
+
+        if (target == null || targetItem == null ||
+            target.FullPath.Equals(draggedPath, StringComparison.OrdinalIgnoreCase))
+        {
+            e.Effects = DragDropEffects.None;
+            e.Handled = true;
+            return;
+        }
+
+        // Subcategory dropped onto "All" → promote to top-level group
+        if (target.IsAll && draggedPath.Contains('/'))
+        {
+            _currentDropAction = DropAction.Promote;
+            _dropTargetItem = targetItem;
+            targetItem.Background = new SolidColorBrush(Color.FromRgb(0xC8, 0xE6, 0xC9)); // green
+            e.Effects = DragDropEffects.Move;
+            e.Handled = true;
+            return;
+        }
+
+        if (target.IsAll)
+        {
+            e.Effects = DragDropEffects.None;
+            e.Handled = true;
+            return;
+        }
+
+        if (draggedPath.Contains('/'))
+        {
+            // ── Subcategory being dragged ──────────────────────────────────
+            var sourceGroup = draggedPath.Split('/')[0];
+
+            if (target.IsGroup)
+            {
+                // Drop onto a group → always re-parent, highlight target
+                _currentDropAction = DropAction.Nest;
+                _dropTargetItem = targetItem;
+                targetItem.Background = new SolidColorBrush(Color.FromRgb(0xC5, 0xCA, 0xE9));
+            }
+            else
+            {
+                // Drop onto another subcategory
+                var targetGroup = target.FullPath.Split('/')[0];
+
+                if (sourceGroup.Equals(targetGroup, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Same group → reorder: top 50% = before, bottom 50% = after
+                    var pos = e.GetPosition(targetItem);
+                    var effectiveHeight = Math.Min(targetItem.ActualHeight, RowHeight);
+                    _currentDropAction = pos.Y < effectiveHeight / 2
+                        ? DropAction.ReorderBefore
+                        : DropAction.ReorderAfter;
+                }
+                else
+                {
+                    // Different group → treat as re-parent into target's group
+                    _currentDropAction = DropAction.Nest;
+                    _dropTargetItem = targetItem;
+                    targetItem.Background = new SolidColorBrush(Color.FromRgb(0xC5, 0xCA, 0xE9));
+                }
+            }
+        }
+        else
+        {
+            // ── Group being dragged ────────────────────────────────────────
+            if (!target.IsGroup)
+            {
+                e.Effects = DragDropEffects.None;
+                e.Handled = true;
+                return;
+            }
+
+            // Cap to header row height so expanded groups behave the same as collapsed ones.
+            var pos = e.GetPosition(targetItem);
+            var effectiveHeight = Math.Min(targetItem.ActualHeight, RowHeight);
+            if (pos.Y < effectiveHeight * ReorderZoneFraction)
+            {
+                _currentDropAction = DropAction.ReorderBefore;
+            }
+            else
+            {
+                _currentDropAction = DropAction.Nest;
+                _dropTargetItem = targetItem;
+                targetItem.Background = new SolidColorBrush(Color.FromRgb(0xC5, 0xCA, 0xE9));
+            }
+        }
+
+        e.Effects = DragDropEffects.Move;
+        e.Handled = true;
+    }
+
+    private async void CategoryTreeView_Drop(object sender, DragEventArgs e)
+    {
+        var action = _currentDropAction;  // capture before ClearDropHighlight resets it
+        ClearDropHighlight();
+
+        if (!e.Data.GetDataPresent("CategoryNodePath")) return;
+        var draggedPath = e.Data.GetData("CategoryNodePath") as string;
+        var (target, _) = GetNodeAndItem(e.OriginalSource as DependencyObject);
+        if (string.IsNullOrEmpty(draggedPath) || target == null) return;
+
+        if (action == DropAction.Promote && draggedPath.Contains('/'))
+        {
+            await _viewModel.ExecutePromoteSubcategoryAsync(draggedPath);
+            return;
+        }
+
+        if (target.IsAll) return;  // no other operation valid on All
+
+        if (draggedPath.Contains('/'))
+        {
+            // Subcategory drag
+            if (action == DropAction.Nest)
+            {
+                var targetGroup = target.IsGroup ? target.Name : target.FullPath.Split('/')[0];
+                await _viewModel.ExecuteReparentSubcategoryAsync(draggedPath, targetGroup);
+            }
+            else if (action is DropAction.ReorderBefore or DropAction.ReorderAfter)
+            {
+                await _viewModel.ExecuteReorderSubcategoryAsync(draggedPath, target.FullPath, action == DropAction.ReorderAfter);
+            }
+        }
+        else
+        {
+            // Group drag
+            if (action == DropAction.Nest)
+            {
+                if (target.IsGroup)
+                    await _viewModel.ExecuteNestGroupAsSubcategoryAsync(draggedPath, target.Name);
+            }
+            else if (action == DropAction.ReorderBefore)
+            {
+                if (target.IsGroup)
+                    await _viewModel.ExecuteReorderGroupAsync(draggedPath, target.FullPath);
+            }
+        }
+    }
+
+    private void CategoryTreeView_DragLeave(object sender, DragEventArgs e)
+    {
+        ClearDropHighlight();
+    }
+
+    private void ClearDropHighlight()
+    {
+        if (_dropTargetItem != null)
+        {
+            _dropTargetItem.Background = Brushes.Transparent;
+            _dropTargetItem = null;
+        }
+        // Do NOT reset _currentDropAction here — DragLeave fires just before Drop
+        // and would wipe the action before Drop can read it.
+        // _currentDropAction is reset only by Drop itself.
+    }
+
+    private static (CategoryNodeViewModel? node, TreeViewItem? item) GetNodeAndItem(DependencyObject? element)
+    {
+        while (element != null)
+        {
+            if (element is TreeViewItem tvi && tvi.DataContext is CategoryNodeViewModel node)
+                return (node, tvi);
+            element = element is Visual
+                ? VisualTreeHelper.GetParent(element)
+                : LogicalTreeHelper.GetParent(element);
+        }
+        return (null, null);
+    }
+
+    // ── Expanded-state & window-size persistence ────────────────────────────
+
+    private void RestoreTreeExpandedState()
+    {
+        var state = _mainWindowStateService.Load();
+        if (state?.ExpandedCategoryNodes is { Count: > 0 } paths)
+            _viewModel.RestoreExpandedState(paths);
+    }
+
+    private void SaveAllState()
+    {
+        var state = _mainWindowStateService.Load() ?? new MainWindowState();
+
+        // Window dimensions
+        var width = Width;
+        var height = Height;
+        if (WindowState != WindowState.Normal)
+        {
+            width = RestoreBounds.Width;
+            height = RestoreBounds.Height;
+        }
+        if (width >= MinWidth && height >= MinHeight)
+        {
+            state.Width = width;
+            state.Height = height;
+        }
+
+        // Expanded tree nodes
+        state.ExpandedCategoryNodes = _viewModel.CategoryTree
+            .Where(n => n.IsExpanded)
+            .Select(n => n.FullPath)
+            .ToList();
+
+        _mainWindowStateService.Save(state);
     }
 
     private void ApplySavedColumnLayout()
@@ -210,27 +483,6 @@ public partial class MainWindow : Window
 
         if (state.Height >= MinHeight)
             Height = state.Height;
-    }
-
-    private void SaveWindowSize()
-    {
-        var width = Width;
-        var height = Height;
-
-        if (WindowState != WindowState.Normal)
-        {
-            width = RestoreBounds.Width;
-            height = RestoreBounds.Height;
-        }
-
-        if (width < MinWidth || height < MinHeight)
-            return;
-
-        _mainWindowStateService.Save(new MainWindowState
-        {
-            Width = width,
-            Height = height
-        });
     }
 
     private sealed class TagsComparer : IComparer

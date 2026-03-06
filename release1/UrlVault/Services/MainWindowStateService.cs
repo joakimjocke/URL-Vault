@@ -7,6 +7,7 @@ public sealed class MainWindowState
 {
     public double Width { get; set; }
     public double Height { get; set; }
+    public List<string> ExpandedCategoryNodes { get; set; } = new();
 }
 
 public sealed class MainWindowStateService

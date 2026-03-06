@@ -9,6 +9,7 @@ public class TagSelection : BaseViewModel
 {
     private bool _isSelected;
     public string Tag { get; set; } = "";
+
     public bool IsSelected
     {
         get => _isSelected;
@@ -24,10 +25,12 @@ public class AddEditViewModel : BaseViewModel
 
     private string _url = "";
     private string _title = "";
-    private string _category = "";
     private string _comment = "";
     private bool _isFetchingTitle;
     private string _duplicateWarning = "";
+    private CategoryGroup? _selectedGroup;
+    private string? _selectedSubcategory;
+    private string _newSubcategoryName = "";
 
     public event Func<UrlEntry, Task>? OnSaved;
 
@@ -50,12 +53,6 @@ public class AddEditViewModel : BaseViewModel
         set => SetProperty(ref _title, value);
     }
 
-    public string Category
-    {
-        get => _category;
-        set => SetProperty(ref _category, value);
-    }
-
     public string Comment
     {
         get => _comment;
@@ -74,16 +71,57 @@ public class AddEditViewModel : BaseViewModel
         set => SetProperty(ref _duplicateWarning, value);
     }
 
-    public bool CanSave => !string.IsNullOrWhiteSpace(Url);
+    public bool CanSave => !string.IsNullOrWhiteSpace(Url) && SelectedGroup != null;
     public bool IsEditMode { get; }
 
-    public ObservableCollection<string> AvailableCategories { get; } = new();
+    public ObservableCollection<CategoryGroup> AvailableGroups { get; } = new();
+    public ObservableCollection<string> AvailableSubcategories { get; } = new();
     public ObservableCollection<string> AvailableTags { get; } = new();
     public ObservableCollection<TagSelection> TagSelections { get; } = new();
+
+    public CategoryGroup? SelectedGroup
+    {
+        get => _selectedGroup;
+        set
+        {
+            if (!SetProperty(ref _selectedGroup, value))
+                return;
+
+            RefreshAvailableSubcategories();
+            OnPropertyChanged(nameof(CategoryPath));
+            OnPropertyChanged(nameof(CanSave));
+        }
+    }
+
+    public string? SelectedSubcategory
+    {
+        get => _selectedSubcategory;
+        set
+        {
+            if (SetProperty(ref _selectedSubcategory, value))
+                OnPropertyChanged(nameof(CategoryPath));
+        }
+    }
+
+    public string NewSubcategoryName
+    {
+        get => _newSubcategoryName;
+        set => SetProperty(ref _newSubcategoryName, value);
+    }
+
+    public bool HasAvailableSubcategories => AvailableSubcategories.Count > 0;
+
+    public string CategoryPath =>
+        SelectedGroup == null
+            ? string.Empty
+            : string.IsNullOrWhiteSpace(SelectedSubcategory)
+                ? SelectedGroup.Name
+                : $"{SelectedGroup.Name}/{SelectedSubcategory}";
 
     public ICommand FetchTitleCommand { get; }
     public ICommand SaveCommand { get; }
     public ICommand CancelCommand { get; }
+    public ICommand AddSubcategoryCommand { get; }
 
     public Action? CloseAction { get; set; }
 
@@ -93,8 +131,8 @@ public class AddEditViewModel : BaseViewModel
         _editEntry = editEntry;
         IsEditMode = editEntry != null;
 
-        foreach (var cat in config.Categories)
-            AvailableCategories.Add(cat);
+        foreach (var group in config.CategoryGroups)
+            AvailableGroups.Add(group);
 
         foreach (var tag in config.Tags)
         {
@@ -106,26 +144,97 @@ public class AddEditViewModel : BaseViewModel
         {
             Url = editEntry.Url;
             Title = editEntry.Title;
-            Category = editEntry.Category;
             Comment = editEntry.Comment;
+            ApplyCategoryPath(editEntry.Category);
 
             foreach (var ts in TagSelections)
                 ts.IsSelected = editEntry.Tags.Contains(ts.Tag);
         }
         else
         {
-            Category = config.Categories.FirstOrDefault() ?? "";
+            SelectedGroup = AvailableGroups.FirstOrDefault();
         }
 
         FetchTitleCommand = new RelayCommand(
-            async () => await ExecuteFetchTitleAsync(),
+            async () => await ExecuteFetchTitleAsync().ConfigureAwait(false),
             () => !string.IsNullOrWhiteSpace(Url) && !IsFetchingTitle);
 
         SaveCommand = new RelayCommand(
-            async () => await ExecuteSaveAsync(),
+            async () => await ExecuteSaveAsync().ConfigureAwait(false),
             () => CanSave);
 
         CancelCommand = new RelayCommand(ExecuteCancel);
+        AddSubcategoryCommand = new RelayCommand(ExecuteAddSubcategory, () => SelectedGroup != null && !string.IsNullOrWhiteSpace(NewSubcategoryName));
+    }
+
+    private void ApplyCategoryPath(string categoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(categoryPath))
+        {
+            SelectedGroup = AvailableGroups.FirstOrDefault();
+            return;
+        }
+
+        var parts = categoryPath.Split('/', 2);
+        var group = AvailableGroups.FirstOrDefault(g => g.Name.Equals(parts[0], StringComparison.OrdinalIgnoreCase));
+        SelectedGroup = group ?? AvailableGroups.FirstOrDefault();
+
+        if (parts.Length == 2)
+        {
+            SelectedSubcategory = AvailableSubcategories.FirstOrDefault(s => s.Equals(parts[1], StringComparison.OrdinalIgnoreCase));
+            if (SelectedSubcategory == null && SelectedGroup != null)
+            {
+                SelectedGroup.Subcategories.Add(parts[1]);
+                RefreshAvailableSubcategories();
+                SelectedSubcategory = parts[1];
+            }
+        }
+    }
+
+    private void RefreshAvailableSubcategories()
+    {
+        var current = SelectedSubcategory;
+        AvailableSubcategories.Clear();
+
+        if (SelectedGroup != null)
+        {
+            foreach (var sub in SelectedGroup.Subcategories)
+                AvailableSubcategories.Add(sub);
+        }
+
+        if (!string.IsNullOrWhiteSpace(current) &&
+            AvailableSubcategories.Any(s => s.Equals(current, StringComparison.OrdinalIgnoreCase)))
+        {
+            SelectedSubcategory = AvailableSubcategories.First(s => s.Equals(current, StringComparison.OrdinalIgnoreCase));
+        }
+        else
+        {
+            SelectedSubcategory = null;
+        }
+
+        OnPropertyChanged(nameof(HasAvailableSubcategories));
+    }
+
+    private void ExecuteAddSubcategory()
+    {
+        if (SelectedGroup == null)
+            return;
+
+        var sub = NewSubcategoryName.Trim();
+        if (string.IsNullOrWhiteSpace(sub))
+            return;
+
+        if (SelectedGroup.Subcategories.Any(s => s.Equals(sub, StringComparison.OrdinalIgnoreCase)))
+        {
+            SelectedSubcategory = SelectedGroup.Subcategories.First(s => s.Equals(sub, StringComparison.OrdinalIgnoreCase));
+            NewSubcategoryName = "";
+            return;
+        }
+
+        SelectedGroup.Subcategories.Add(sub);
+        RefreshAvailableSubcategories();
+        SelectedSubcategory = sub;
+        NewSubcategoryName = "";
     }
 
     private async Task ExecuteFetchTitleAsync()
@@ -151,7 +260,7 @@ public class AddEditViewModel : BaseViewModel
 
         if (isDuplicate)
         {
-            DuplicateWarning = "⚠️ This URL already exists in your vault.";
+            DuplicateWarning = "This URL already exists in your vault.";
             return;
         }
 
@@ -166,7 +275,7 @@ public class AddEditViewModel : BaseViewModel
                 Id = _editEntry.Id,
                 Url = Url,
                 Title = Title,
-                Category = Category,
+                Category = CategoryPath,
                 Tags = selectedTags,
                 Comment = Comment,
                 DateSaved = _editEntry.DateSaved,
@@ -179,7 +288,7 @@ public class AddEditViewModel : BaseViewModel
             {
                 Url = Url,
                 Title = Title,
-                Category = Category,
+                Category = CategoryPath,
                 Tags = selectedTags,
                 Comment = Comment,
                 DateSaved = now,
