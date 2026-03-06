@@ -6,7 +6,7 @@
         Title="Add / Edit URL" Height="580" Width="540"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        Background="#F5F5F5">
+        Background="{DynamicResource AppBackground}">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis"/>
@@ -16,18 +16,20 @@
         <Style x:Key="FormLabel" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Margin" Value="0,0,0,4"/>
-            <Setter Property="Foreground" Value="#3F51B5"/>
+            <Setter Property="Foreground" Value="{DynamicResource LabelForeground}"/>
         </Style>
         <Style x:Key="FormTextBox" TargetType="TextBox">
             <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="BorderBrush" Value="#C5CAE9"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ForegroundPrimary}"/>
         </Style>
         <Style x:Key="ActionButton" TargetType="Button">
             <Setter Property="Padding" Value="16,8"/>
             <Setter Property="Margin" Value="4,0"/>
-            <Setter Property="Background" Value="#3F51B5"/>
+            <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontSize" Value="13"/>
@@ -40,12 +42,110 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#5C6BC0"/>
+                                <Setter Property="Background" Value="{DynamicResource PrimaryHoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Background" Value="#9E9E9E"/>
+                                <Setter Property="Background" Value="{DynamicResource DisabledBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Makes ComboBox dropdown items follow the active theme -->
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ForegroundPrimary}"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ListItemHoverBackground}"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource ListItemSelectedBackground}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource ListItemSelectedForeground}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Full ComboBox template — replaces the default so the selection box
+             uses DynamicResource instead of x:Static SystemColors (which is baked
+             in at compile time and cannot be overridden by resource dictionary swaps). -->
+        <Style TargetType="ComboBox">
+            <Setter Property="Background"   Value="{DynamicResource SurfaceBackground}"/>
+            <Setter Property="Foreground"   Value="{DynamicResource ForegroundPrimary}"/>
+            <Setter Property="BorderBrush"  Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding"      Value="8,6"/>
+            <Setter Property="FontSize"     Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="20"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Selection box border -->
+                            <Border Grid.ColumnSpan="2"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="2"/>
+
+                            <!-- Selected item content presenter -->
+                            <ContentPresenter Grid.Column="0"
+                                              Margin="{TemplateBinding Padding}"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Left"
+                                              IsHitTestVisible="False"/>
+
+                            <!-- Drop-down arrow -->
+                            <Path Grid.Column="1"
+                                  Data="M0,0 L4,4 L8,0"
+                                  Stroke="{DynamicResource ForegroundSecondary}"
+                                  StrokeThickness="1.5"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  IsHitTestVisible="False"/>
+
+                            <!-- Toggle button overlay (transparent, just captures clicks) -->
+                            <ToggleButton Grid.ColumnSpan="2"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          Focusable="False"
+                                          ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="Transparent"/>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+
+                            <!-- Dropdown popup -->
+                            <Popup Grid.ColumnSpan="2"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Slide"
+                                   Placement="Bottom">
+                                <Border Background="{DynamicResource SurfaceBackground}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
+                                        BorderThickness="1"
+                                        MinWidth="{TemplateBinding ActualWidth}"
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -94,15 +194,13 @@
             <ComboBox Grid.Row="5"
                       ItemsSource="{Binding AvailableGroups}"
                       SelectedItem="{Binding SelectedGroup}"
-                      Margin="0,0,0,8"
-                      Padding="8,6"
-                      FontSize="13">
+                      Margin="0,0,0,8">
                 <ComboBox.ItemTemplate>
                     <DataTemplate DataType="{x:Type vm:CategoryGroup}">
                         <StackPanel Orientation="Horizontal">
                             <Border Width="10" Height="10" Margin="0,0,6,0" CornerRadius="2"
                                     Background="{Binding Color, Converter={StaticResource HexColorToBrushConverter}}"/>
-                            <TextBlock Text="{Binding Name}"/>
+                            <TextBlock Text="{Binding Name}" Foreground="{DynamicResource ForegroundPrimary}"/>
                         </StackPanel>
                     </DataTemplate>
                 </ComboBox.ItemTemplate>
@@ -116,11 +214,9 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <ComboBox ItemsSource="{Binding AvailableSubcategories}"
-                          SelectedItem="{Binding SelectedSubcategory}"
-                          Padding="8,6"
-                          FontSize="13">
+                          SelectedItem="{Binding SelectedSubcategory}">
                     <ComboBox.Style>
-                        <Style TargetType="ComboBox">
+                        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
                             <Setter Property="Visibility" Value="Collapsed"/>
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding HasAvailableSubcategories}" Value="True">
@@ -147,7 +243,8 @@
             </Grid>
 
             <TextBlock Grid.Row="8" Text="Tags" Style="{StaticResource FormLabel}"/>
-            <Border Grid.Row="9" BorderBrush="#C5CAE9" BorderThickness="1" CornerRadius="2"
+            <Border Grid.Row="9" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="2"
+                    Background="{DynamicResource SurfaceBackground}"
                     Margin="0,0,0,12" MaxHeight="100">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding TagSelections}">
@@ -158,7 +255,8 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <CheckBox Content="{Binding Tag}" IsChecked="{Binding IsSelected}" Margin="4,2"/>
+                                <CheckBox Content="{Binding Tag}" IsChecked="{Binding IsSelected}" Margin="4,2"
+                                          Foreground="{DynamicResource ForegroundPrimary}"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -178,7 +276,7 @@
                        Margin="0,0,0,8"/>
 
             <StackPanel Grid.Row="13" Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Cancel" Command="{Binding CancelCommand}" Style="{StaticResource ActionButton}" Background="#757575"/>
+                <Button Content="Cancel" Command="{Binding CancelCommand}" Style="{StaticResource ActionButton}" Background="{DynamicResource CancelBrush}"/>
                 <Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource ActionButton}" IsDefault="True"/>
             </StackPanel>
         </Grid>

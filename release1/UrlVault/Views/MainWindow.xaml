@@ -5,18 +5,20 @@
         xmlns:converters="clr-namespace:UrlVault.Converters"
         Title="UrlVault - URL Manager" Height="700" Width="1100"
         MinHeight="500" MinWidth="900"
-        Background="#F5F5F5">
+        Background="{DynamicResource AppBackground}">
     <Window.Resources>
         <converters:StringJoinConverter x:Key="StringJoinConverter"/>
         <converters:CategoryToColorConverter x:Key="CategoryToColorConverter"/>
         <converters:CategoryToLeafNameConverter x:Key="CategoryToLeafNameConverter"/>
         <converters:HexColorToBrushConverter x:Key="HexColorToBrushConverter"/>
         <converters:DateSavedConverter x:Key="DateSavedConverter"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis"/>
 
         <Style x:Key="ToolbarButtonStyle" TargetType="Button">
             <Setter Property="Padding" Value="12,6"/>
             <Setter Property="Margin" Value="2,0"/>
-            <Setter Property="Background" Value="#3F51B5"/>
+            <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontSize" Value="13"/>
@@ -29,10 +31,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#5C6BC0"/>
+                                <Setter Property="Background" Value="{DynamicResource PrimaryHoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Background" Value="#9E9E9E"/>
+                                <Setter Property="Background" Value="{DynamicResource DisabledBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -43,7 +45,7 @@
         <Style x:Key="DangerButtonStyle" TargetType="Button">
             <Setter Property="Padding" Value="12,6"/>
             <Setter Property="Margin" Value="2,0"/>
-            <Setter Property="Background" Value="#E53935"/>
+            <Setter Property="Background" Value="{DynamicResource DangerBrush}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontSize" Value="13"/>
@@ -56,16 +58,25 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#EF5350"/>
+                                <Setter Property="Background" Value="{DynamicResource DangerHoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Background" Value="#9E9E9E"/>
+                                <Setter Property="Background" Value="{DynamicResource DisabledBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Column headers follow the sub-header surface so they're always readable -->
+        <Style TargetType="GridViewColumnHeader">
+            <Setter Property="Background" Value="{DynamicResource SubHeaderBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ForegroundPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Padding" Value="8,4"/>
+        </Style>
+
     </Window.Resources>
 
     <Grid>
@@ -77,14 +88,26 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="#1A237E" Padding="16,10">
+        <Border Grid.Row="0" Background="{DynamicResource HeaderBackground}" Padding="16,10">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="UrlVault" Foreground="White" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock FontSize="20" FontWeight="Bold" LineHeight="22">
+                        <Run Text="Url" Foreground="{DynamicResource AccentBrush}"/>
+                        <Run Text="Vault" Foreground="{DynamicResource ForegroundOnDark}"/>
+                    </TextBlock>
+                    <TextBlock Text="URL Manager" Foreground="{DynamicResource ForegroundOnDark}" FontSize="11" Opacity="0.6" Margin="1,1,0,0"/>
+                </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Command="{Binding ToggleThemeCommand}" Style="{StaticResource ToolbarButtonStyle}" Background="{DynamicResource AccentBrush}" Foreground="#1E2A38" Margin="2,0,10,0">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="&#x2600; Light" Visibility="{Binding IsDarkMode, Converter={StaticResource BoolToVis}}" VerticalAlignment="Center"/>
+                            <TextBlock Text="&#x263E; Dark" Visibility="{Binding IsDarkMode, Converter={StaticResource InverseBoolToVis}}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                     <Button Content="+ Add" Command="{Binding AddCommand}" Style="{StaticResource ToolbarButtonStyle}"/>
                     <Button Content="Edit" Command="{Binding EditCommand}" Style="{StaticResource ToolbarButtonStyle}"/>
                     <Button Content="Delete" Command="{Binding DeleteCommand}" Style="{StaticResource DangerButtonStyle}"/>
@@ -94,18 +117,19 @@
             </Grid>
         </Border>
 
-        <Border Grid.Row="1" Background="#E8EAF6" Padding="16,8">
-            <Border Background="White" CornerRadius="4" BorderBrush="#C5CAE9" BorderThickness="1">
+        <Border Grid.Row="1" Background="{DynamicResource SubHeaderBackground}" Padding="16,8">
+            <Border Background="{DynamicResource SearchSurfaceBackground}" CornerRadius="4" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                 <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                          BorderThickness="0" Padding="8,6" FontSize="13"
                          Background="Transparent"
+                         Foreground="{DynamicResource ForegroundPrimary}"
                          VerticalAlignment="Center"/>
             </Border>
         </Border>
 
-        <Border Grid.Row="2" Background="#F3F4FF" Padding="16,6" BorderBrush="#C5CAE9" BorderThickness="0,0,0,1">
+        <Border Grid.Row="2" Background="{DynamicResource TagBarBackground}" Padding="16,6" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
             <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Tags:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold" Foreground="#3F51B5"/>
+                <TextBlock Text="Tags:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold" Foreground="{DynamicResource LabelForeground}"/>
                 <ItemsControl ItemsSource="{Binding Config.Tags}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -116,7 +140,18 @@
                         <DataTemplate>
                             <CheckBox Content="{Binding}" Margin="0,0,12,0" VerticalAlignment="Center"
                                       Checked="TagFilter_Changed" Unchecked="TagFilter_Changed"
-                                      Tag="{Binding}"/>
+                                      Tag="{Binding}">
+                                <CheckBox.Style>
+                                    <Style TargetType="CheckBox">
+                                        <Setter Property="Foreground" Value="{DynamicResource ForegroundPrimary}"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </CheckBox.Style>
+                            </CheckBox>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -130,7 +165,7 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Background="White" BorderBrush="#C5CAE9" BorderThickness="1" CornerRadius="4" Padding="8">
+            <Border Grid.Column="0" Background="{DynamicResource SurfaceBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
@@ -152,6 +187,64 @@
                             <Style TargetType="TreeViewItem">
                                 <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
                                 <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=TreeView}}"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="TreeViewItem">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition/>
+                                                </Grid.RowDefinitions>
+                                                <Border x:Name="RowBorder" Background="Transparent" Padding="2,3">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <!-- expand/collapse toggle -->
+                                                        <ToggleButton x:Name="Expander"
+                                                                      IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
+                                                                      Visibility="{Binding HasItems, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource BoolToVis}}"
+                                                                      Width="16" Focusable="False"
+                                                                      Style="{x:Null}">
+                                                            <ToggleButton.Template>
+                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                    <Border Background="Transparent">
+                                                                        <Path x:Name="Arrow"
+                                                                              Data="M0,0 L4,4 L8,0"
+                                                                              Stroke="{DynamicResource ForegroundSubtle}"
+                                                                              StrokeThickness="1.2"
+                                                                              HorizontalAlignment="Center"
+                                                                              VerticalAlignment="Center"/>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsChecked" Value="False">
+                                                                            <Setter TargetName="Arrow" Property="Data" Value="M0,0 L0,8 L4,4"/>
+                                                                            <Setter TargetName="Arrow" Property="Stroke" Value="{DynamicResource ForegroundSubtle}"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </ToggleButton.Template>
+                                                        </ToggleButton>
+                                                        <ContentPresenter Grid.Column="1" ContentSource="Header" VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </Border>
+                                                <ItemsPresenter Grid.Row="1" Margin="12,0,0,0"
+                                                                Visibility="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource BoolToVis}}"/>
+                                            </Grid>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="RowBorder" Property="Background" Value="{DynamicResource ListItemSelectedBackground}"/>
+                                                    <Setter TargetName="RowBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                                    <Setter TargetName="RowBorder" Property="BorderThickness" Value="2,0,0,0"/>
+                                                </Trigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="RowBorder" Property="Background" Value="{DynamicResource ListItemHoverBackground}"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
                                 <Setter Property="ContextMenu">
                                     <Setter.Value>
                                         <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
@@ -197,7 +290,7 @@
                                     <Run Text="{Binding Name}">
                                         <Run.Style>
                                             <Style TargetType="Run">
-                                                <Setter Property="Foreground" Value="#263238"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource TreeNodeForeground}"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding IsGroup}" Value="True">
                                                         <Setter Property="Foreground" Value="{Binding Color, Converter={StaticResource HexColorToBrushConverter}}"/>
@@ -208,7 +301,7 @@
                                         </Run.Style>
                                     </Run>
                                     <Run Text=" "/>
-                                    <Run Text="{Binding Count, StringFormat='({0})'}" Foreground="#607D8B"/>
+                                    <Run Text="{Binding Count, StringFormat='({0})'}" Foreground="{DynamicResource TreeCountForeground}"/>
                                 </TextBlock>
                             </HierarchicalDataTemplate>
                         </TreeView.ItemTemplate>
@@ -222,12 +315,14 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Column="2" Background="White" BorderBrush="#C5CAE9" BorderThickness="1" CornerRadius="4">
+            <Border Grid.Column="2" Background="{DynamicResource SurfaceBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4">
                 <ListView x:Name="UrlListView"
                           ItemsSource="{Binding EntriesView}"
                           SelectedItem="{Binding SelectedEntry}"
                           BorderThickness="0"
-                          FontSize="13">
+                          FontSize="13"
+                          Background="{DynamicResource SurfaceBackground}"
+                          Foreground="{DynamicResource ForegroundPrimary}">
                     <ListView.View>
                         <GridView x:Name="UrlGridView" AllowsColumnReorder="True">
                             <GridViewColumn Header="Title" Width="250" DisplayMemberBinding="{Binding Title}"/>
@@ -278,6 +373,8 @@
                         <Style TargetType="ListViewItem">
                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                             <Setter Property="Padding" Value="4,6"/>
+                            <Setter Property="Background" Value="{DynamicResource SurfaceBackground}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource ForegroundPrimary}"/>
                             <!-- Tag carries the MainViewModel so the ContextMenu can reach its commands -->
                             <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ListView}}"/>
                             <Setter Property="ContextMenu">
@@ -299,11 +396,11 @@
                             <EventSetter Event="PreviewMouseRightButtonDown" Handler="UrlListViewItem_PreviewMouseRightButtonDown"/>
                             <Style.Triggers>
                                 <Trigger Property="IsSelected" Value="True">
-                                    <Setter Property="Background" Value="#E8EAF6"/>
-                                    <Setter Property="Foreground" Value="#1A237E"/>
+                                    <Setter Property="Background" Value="{DynamicResource ListItemSelectedBackground}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource ListItemSelectedForeground}"/>
                                 </Trigger>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#F3F4FF"/>
+                                    <Setter Property="Background" Value="{DynamicResource ListItemHoverBackground}"/>
                                 </Trigger>
                             </Style.Triggers>
                         </Style>
@@ -312,17 +409,15 @@
             </Border>
         </Grid>
 
-        <Border Grid.Row="4" Background="#1A237E" Padding="16,5">
+        <Border Grid.Row="4" Background="{DynamicResource HeaderBackground}" Padding="16,5">
             <StackPanel Orientation="Horizontal">
-                <TextBlock Foreground="White" FontSize="12">
-                    <TextBlock.Text>
-                        <MultiBinding StringFormat="Showing {0} entries">
-                            <Binding Path="DisplayedCount"/>
-                        </MultiBinding>
-                    </TextBlock.Text>
+                <TextBlock FontSize="12">
+                    <Run Text="Showing " Foreground="{DynamicResource ForegroundOnDark}"/>
+                    <Run Text="{Binding DisplayedCount, Mode=OneWay}" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold"/>
+                    <Run Text=" entries" Foreground="{DynamicResource ForegroundOnDark}"/>
                 </TextBlock>
-                <TextBlock Text=" | " Foreground="#9FA8DA" FontSize="12"/>
-                <TextBlock Text="UrlVault" Foreground="#9FA8DA" FontSize="12"/>
+                <TextBlock Text=" | " Foreground="{DynamicResource ForegroundSubtle}" FontSize="12"/>
+                <TextBlock Text="UrlVault" Foreground="{DynamicResource ForegroundSubtle}" FontSize="12"/>
             </StackPanel>
         </Border>
     </Grid>

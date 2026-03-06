@@ -21,6 +21,7 @@ public class MainViewModel : BaseViewModel
     private AppConfig _config = new();
     private UrlEntry? _selectedEntry;
     private bool _isBusy;
+    private bool _isDarkMode;
     private CategoryNodeViewModel? _selectedCategoryNode;
 
     public ObservableCollection<string> SelectedTagFilters { get; } = new();
@@ -70,6 +71,12 @@ public class MainViewModel : BaseViewModel
         set => SetProperty(ref _isBusy, value);
     }
 
+    public bool IsDarkMode
+    {
+        get => _isDarkMode;
+        set => SetProperty(ref _isDarkMode, value);
+    }
+
     public int DisplayedCount => _entriesView?.Cast<object>().Count() ?? 0;
 
     public ICommand AddCommand { get; }
@@ -82,6 +89,7 @@ public class MainViewModel : BaseViewModel
     public ICommand RenameCategoryCommand { get; }
     public ICommand AddSubcategoryCommand { get; }
     public ICommand DeleteCategoryCommand { get; }
+    public ICommand ToggleThemeCommand { get; }
 
     public MainViewModel()
     {
@@ -95,6 +103,7 @@ public class MainViewModel : BaseViewModel
         RenameCategoryCommand = new RelayCommand(async node => await ExecuteRenameCategoryNodeAsync(node as CategoryNodeViewModel).ConfigureAwait(false));
         AddSubcategoryCommand = new RelayCommand(async node => await ExecuteAddSubcategoryAsync(node as CategoryNodeViewModel).ConfigureAwait(false));
         DeleteCategoryCommand = new RelayCommand(async node => await ExecuteDeleteCategoryNodeAsync(node as CategoryNodeViewModel).ConfigureAwait(false));
+        ToggleThemeCommand = new RelayCommand(ExecuteToggleTheme);
 
         SelectedTagFilters.CollectionChanged += (_, _) => _entriesView?.Refresh();
     }
@@ -105,6 +114,7 @@ public class MainViewModel : BaseViewModel
         try
         {
             Config = await _configService.LoadConfigAsync().ConfigureAwait(false);
+            IsDarkMode = Config.IsDarkMode;   // keep VM in sync; theme already applied by App.OnStartup
             var entries = await _storageService.LoadUrlsAsync().ConfigureAwait(false);
 
             Application.Current.Dispatcher.Invoke(() =>
@@ -726,5 +736,13 @@ public class MainViewModel : BaseViewModel
             window.Owner = owner;
 
         return window;
+    }
+
+    private void ExecuteToggleTheme()
+    {
+        IsDarkMode = !IsDarkMode;
+        Config.IsDarkMode = IsDarkMode;
+        ThemeService.Apply(IsDarkMode);
+        _ = _configService.SaveConfigAsync(Config);
     }
 }
